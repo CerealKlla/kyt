@@ -1,0 +1,29 @@
+license="${mod_license}"
+
+[[mods]] #mandatory
+
+modId="${mod_id}" #mandatory
+
+version="${mod_version}" #mandatory
+
+displayName="${mod_name}" #mandatory
+
+description='''
+Stores named equipment loadouts (armor + offhand + hotbar) as individual JSON files, editable via
+an in-world GUI opened from a placeable "Kyt Configuration" structure. Exposes a public read-only
+API (api.Kyt) so other mods can look up a saved loadout by name.
+'''
+
+[[dependencies.${mod_id}]] #optional
+    modId="neoforge" #mandatory
+    type="required" #mandatory
+    versionRange="[${neo_version},)" #mandatory
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    type="required"
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="BOTH"
