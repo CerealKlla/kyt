@@ -12,8 +12,8 @@ import net.minecraft.world.item.ItemStack;
  * One saved Kyt loadout -- mirrors the real vanilla player inventory shape, per the user's own
  * spec: four armor slots (Helmet/Chestplate/Leggings/Boots), one Offhand slot, and a 9-slot Hotbar.
  * No separate "Weapons"/"Consumables" slot groups -- those are browsing filters in the item palette
- * only (see {@code loadout.client.ItemPaletteScreen}), not output categories here. Unfilled slots
- * are {@link ItemStack#EMPTY}.
+ * only (see {@code loadout.client.LoadoutEditorScreen}'s palette panel), not output categories
+ * here. Unfilled slots are {@link ItemStack#EMPTY}.
  *
  * <p><b>{@code inventory}/{@code systemManaged}, added 2026-10-02</b> (see decisions.md) -- a
  * 27-slot general-inventory overflow, used only by code-constructed, mod-managed Kyts (e.g.

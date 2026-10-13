@@ -6,8 +6,8 @@ import net.minecraft.world.item.ItemStack;
 
 /**
  * Shared item-category predicates, used both to restrict {@link LoadoutArmorSlot}'s own {@code
- * mayPlace} and to classify items into {@code client.ItemPaletteScreen}'s three browsing tabs --
- * kept in one place so the two can never drift out of sync with each other.
+ * mayPlace} and to classify items into {@code client.LoadoutEditorScreen}'s palette panel's three
+ * browsing tabs -- kept in one place so the two can never drift out of sync with each other.
  */
 public final class LoadoutItemFilters {
 

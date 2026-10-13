@@ -10,7 +10,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
 /**
- * Client-to-server: {@code client.ItemPaletteScreen} picked an item -- left-click wants a full
+ * Client-to-server: {@code client.LoadoutEditorScreen}'s palette panel picked an item -- left-click wants a full
  * stack, right-click wants one. The client never materializes the item itself (that would desync
  * from the server's own authoritative {@code AbstractContainerMenu#carried} the moment a slot click
  * followed it); the server resolves the item, calls {@code LoadoutMenu#setCarried}, and vanilla's

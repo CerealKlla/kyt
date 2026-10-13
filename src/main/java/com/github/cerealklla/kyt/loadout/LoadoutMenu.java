@@ -21,7 +21,7 @@ import net.minecraft.world.item.ItemStack;
  * 2026-10-01 per explicit user feedback -- the crafting grid/player-model quadrant of vanilla's
  * {@code inventory.png} and an extra "your own inventory" panel both cluttered the screen for no
  * real benefit) -- the only way an item reaches a loadout slot is via {@code
- * client.ItemPaletteScreen}'s give-onto-cursor flow, then a normal slot click.
+ * client.LoadoutEditorScreen}'s palette panel's give-onto-cursor flow, then a normal slot click.
  *
  * <p>Item contents sync to the client entirely through vanilla's own container-sync machinery (no
  * hand-rolled network payload carrying {@code ItemStack}s) -- the server builds this menu from a

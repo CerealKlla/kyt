@@ -1,6 +1,12 @@
 package com.github.cerealklla.kyt.loadout.client;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+
+import com.github.cerealklla.kyt.loadout.LoadoutItemFilters;
 import com.github.cerealklla.kyt.loadout.LoadoutMenu;
+import com.github.cerealklla.kyt.loadout.RequestPaletteItemPayload;
 import com.github.cerealklla.kyt.loadout.SaveKytPayload;
 
 import net.minecraft.client.Minecraft;
@@ -10,13 +16,19 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 /**
  * The Create/Edit screen for one Kyt loadout -- a real {@link AbstractContainerScreen} over {@link
@@ -40,9 +52,19 @@ import net.minecraft.world.entity.player.Inventory;
  * LivingEntity#onEquipItem}'s equip-sound branch is guarded by {@code !level().isClientSide()}, so
  * nothing ever plays.
  *
- * <p>"Kyt Name" is disabled (read-only) in Edit mode, matching the user's own spec. "Open Palette"
- * brings up {@link ItemPaletteScreen} to browse/pick an item onto the cursor; "Save" sends {@link
- * SaveKytPayload} (no item data -- the server already has this menu's live, synced Container).
+ * <p>"Kyt Name" is disabled (read-only) in Edit mode, matching the user's own spec.
+ *
+ * <p><b>Item palette merged directly into this screen, 2026-10-13</b> -- real live-test feedback:
+ * "very clunky trying to take items from the palette to add" when it was its own separate {@code
+ * Screen} (the old {@code ItemPaletteScreen}), reached via an "Open Palette" button and left via a
+ * "Back" button -- picking an item took four real clicks (Open Palette -> pick item -> Back -> click
+ * destination slot) for what should be two. The palette's own tabs/grid/catalog logic is unchanged
+ * (still a right-click-for-one/left-click-for-a-stack creative-style browser, same {@link
+ * RequestPaletteItemPayload} round trip -- picking an item never touches this screen's state
+ * directly, the server sets it on the live {@link LoadoutMenu} both panels already share), just
+ * folded in as a permanently-visible panel to the right of the loadout slots instead of a whole
+ * separate screen -- so picking an item and placing it is now one continuous click-click action on
+ * the one screen, no navigation in between.
  */
 public final class LoadoutEditorScreen extends AbstractContainerScreen<LoadoutMenu> {
 
@@ -65,7 +87,14 @@ public final class LoadoutEditorScreen extends AbstractContainerScreen<LoadoutMe
     // backing entirely.
     private static final int HOTBAR_CROP_HEIGHT = 19;
 
-    private static final int IMAGE_WIDTH = 176;
+    // The loadout panel's own real width -- kept as its own constant (distinct from this screen's
+    // now-wider combined `imageWidth`, see this class's own doc) specifically so the hotbar-row blit
+    // below keeps sampling vanilla's real texture at its own true width instead of being stretched
+    // across the palette panel too.
+    private static final int LOADOUT_PANEL_WIDTH = 176;
+    private static final int PALETTE_GAP = 10;
+
+    private static final int IMAGE_WIDTH = LOADOUT_PANEL_WIDTH + PALETTE_GAP + ItemPalette.PANEL_WIDTH;
     private static final int IMAGE_HEIGHT = LoadoutMenu.HOTBAR_Y + HOTBAR_CROP_HEIGHT + 30;
 
     // The top crop is drawn 14px lower than its own source (destY = topPos + TOP_DEST_Y_OFFSET,
@@ -87,6 +116,9 @@ public final class LoadoutEditorScreen extends AbstractContainerScreen<LoadoutMe
 
     private EditBox nameBox;
     private ArmorStand previewMannequin;
+    private final ItemPalette palette = new ItemPalette();
+    private int paletteLeft;
+    private int paletteTop;
 
     public LoadoutEditorScreen(LoadoutMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title, IMAGE_WIDTH, IMAGE_HEIGHT);
@@ -110,12 +142,11 @@ public final class LoadoutEditorScreen extends AbstractContainerScreen<LoadoutMe
         nameBox.setValue(menu.name());
         nameBox.setEditable(menu.isNameEditable());
 
-        addRenderableWidget(Button.builder(Component.literal("Open Palette"), b ->
-                Minecraft.getInstance().setScreen(new ItemPaletteScreen(this)))
-                .bounds(leftPos + imageWidth - 100, topPos + imageHeight - 24, 100, 20).build());
-
         addRenderableWidget(Button.builder(Component.literal("Save"), b -> save())
                 .bounds(leftPos, topPos + imageHeight - 24, 70, 20).build());
+
+        paletteLeft = leftPos + LOADOUT_PANEL_WIDTH + PALETTE_GAP;
+        paletteTop = topPos + TOP_DEST_Y_OFFSET;
     }
 
     private void save() {
@@ -130,7 +161,7 @@ public final class LoadoutEditorScreen extends AbstractContainerScreen<LoadoutMe
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         graphics.blit(RenderPipelines.GUI_TEXTURED, INVENTORY_LOCATION, leftPos, topPos + TOP_DEST_Y_OFFSET, 0.0F, 0.0F, TOP_CROP_WIDTH, TOP_CROP_HEIGHT, 256, 256);
         graphics.blit(RenderPipelines.GUI_TEXTURED, INVENTORY_LOCATION, leftPos, topPos + LoadoutMenu.HOTBAR_Y - 1, 0.0F,
-                (float) HOTBAR_SOURCE_V, imageWidth, HOTBAR_CROP_HEIGHT, 256, 256);
+                (float) HOTBAR_SOURCE_V, LOADOUT_PANEL_WIDTH, HOTBAR_CROP_HEIGHT, 256, 256);
     }
 
     @Override
@@ -156,6 +187,25 @@ public final class LoadoutEditorScreen extends AbstractContainerScreen<LoadoutMe
             InventoryScreen.extractEntityInInventoryFollowsMouse(graphics, leftPos + PREVIEW_X0, topPos + PREVIEW_Y0,
                     leftPos + PREVIEW_X1, topPos + PREVIEW_Y1, 30, 0.0625F, mouseX, mouseY, previewMannequin);
         }
+
+        palette.extractRenderState(graphics, font, paletteLeft, paletteTop, mouseX, mouseY);
+    }
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
+        if (super.mouseClicked(event, doubled)) {
+            return true;
+        }
+        return palette.mouseClicked(event, paletteLeft, paletteTop);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (palette.isOverGrid(mouseX, mouseY, paletteLeft, paletteTop)) {
+            palette.scroll(scrollY);
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     @Override
@@ -175,5 +225,219 @@ public final class LoadoutEditorScreen extends AbstractContainerScreen<LoadoutMe
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    /**
+     * The creative-tab-style item browser, folded directly into {@link LoadoutEditorScreen} (see
+     * that class's own doc for why) -- a plain helper object rather than its own {@code Screen}, so
+     * it can render/handle input inline alongside the loadout panel on one shared screen. Reuses
+     * vanilla's own real background texture ({@code textures/gui/container/creative_inventory/
+     * tab_items.png}, which already has the 9x5 slot grid baked into its art at the same 18px-cell,
+     * (9,18)-origin layout {@code ItemPickerMenu} itself uses) and the real tab sprites, so this
+     * looks like a real creative screen instead of a hand-drawn grid.
+     *
+     * <p>Armor / Weapons / Consumables are pure browsing filters, used only to narrow which items
+     * are shown -- the actual destination slot (Offhand/Hotbar accept anything, the four armor
+     * slots check their own type) is enforced by {@link LoadoutMenu}'s own {@code Slot}s.
+     *
+     * <p>Left-click gives a full stack onto the cursor, right-click gives one. Picking an item never
+     * touches this screen's own state directly -- it round-trips through the server via {@link
+     * RequestPaletteItemPayload}, which sets it on the live {@link LoadoutMenu} this panel's own
+     * parent screen already shares.
+     */
+    private static final class ItemPalette {
+
+        private enum Category { ARMOR, WEAPONS, CONSUMABLES }
+
+        private static final Identifier BACKGROUND = Identifier.withDefaultNamespace("textures/gui/container/creative_inventory/tab_items.png");
+        private static final Identifier SCROLLER_SPRITE = Identifier.withDefaultNamespace("container/creative_inventory/scroller");
+        private static final Identifier SCROLLER_DISABLED_SPRITE = Identifier.withDefaultNamespace("container/creative_inventory/scroller_disabled");
+        private static final Identifier[] UNSELECTED_TABS = {
+                Identifier.withDefaultNamespace("container/creative_inventory/tab_top_unselected_1"),
+                Identifier.withDefaultNamespace("container/creative_inventory/tab_top_unselected_2"),
+                Identifier.withDefaultNamespace("container/creative_inventory/tab_top_unselected_3"),
+        };
+        private static final Identifier[] SELECTED_TABS = {
+                Identifier.withDefaultNamespace("container/creative_inventory/tab_top_selected_1"),
+                Identifier.withDefaultNamespace("container/creative_inventory/tab_top_selected_2"),
+                Identifier.withDefaultNamespace("container/creative_inventory/tab_top_selected_3"),
+        };
+
+        // Matches vanilla's own ItemPickerMenu slot layout exactly: 9 columns, 5 visible rows, 18px
+        // cells, grid origin (9, 18) relative to the panel -- so the grid lines up with the texture's
+        // own baked-in slot art instead of needing a separate per-cell sprite.
+        private static final int COLUMNS = 9;
+        private static final int VISIBLE_ROWS = 5;
+        private static final int CELL_SIZE = 18;
+        private static final int GRID_X = 9;
+        private static final int GRID_Y = 18;
+        static final int PANEL_WIDTH = 195;
+        private static final int PANEL_HEIGHT = 136;
+        private static final int TAB_WIDTH = 26;
+        private static final int TAB_HEIGHT = 32;
+
+        private final List<ItemStack> armorItems = new ArrayList<>();
+        private final List<ItemStack> weaponItems = new ArrayList<>();
+        private final List<ItemStack> consumableItems = new ArrayList<>();
+
+        private Category active = Category.ARMOR;
+        private int scrollRow;
+
+        ItemPalette() {
+            List<ItemStack> all = new ArrayList<>();
+            for (Item item : BuiltInRegistries.ITEM) {
+                if (item == Items.AIR) {
+                    continue;
+                }
+                all.add(new ItemStack(item));
+            }
+            all.sort(Comparator.comparing(stack -> stack.getHoverName().getString()));
+            for (ItemStack stack : all) {
+                if (LoadoutItemFilters.isArmor(stack)) {
+                    armorItems.add(stack);
+                }
+                if (LoadoutItemFilters.isWeapon(stack)) {
+                    weaponItems.add(stack);
+                }
+                if (LoadoutItemFilters.isConsumable(stack)) {
+                    consumableItems.add(stack);
+                }
+            }
+        }
+
+        private List<ItemStack> activeItems() {
+            return switch (active) {
+                case ARMOR -> armorItems;
+                case WEAPONS -> weaponItems;
+                case CONSUMABLES -> consumableItems;
+            };
+        }
+
+        private static Component tabLabel(Category category) {
+            return switch (category) {
+                case ARMOR -> Component.literal("Armor");
+                case WEAPONS -> Component.literal("Weapons");
+                case CONSUMABLES -> Component.literal("Consumables");
+            };
+        }
+
+        private static ItemStack tabIcon(Category category) {
+            return switch (category) {
+                case ARMOR -> new ItemStack(Items.DIAMOND_CHESTPLATE);
+                case WEAPONS -> new ItemStack(Items.DIAMOND_SWORD);
+                case CONSUMABLES -> new ItemStack(Items.APPLE);
+            };
+        }
+
+        private int maxScrollRow() {
+            int rows = (activeItems().size() + COLUMNS - 1) / COLUMNS;
+            return Math.max(0, rows - VISIBLE_ROWS);
+        }
+
+        private static int tabX(int panelLeft, int index) {
+            return panelLeft + index * (TAB_WIDTH + 2);
+        }
+
+        private static int tabY(int panelTop) {
+            return panelTop - TAB_HEIGHT + 4;
+        }
+
+        boolean isOverGrid(double mouseX, double mouseY, int panelLeft, int panelTop) {
+            return mouseX >= panelLeft && mouseX < panelLeft + PANEL_WIDTH
+                    && mouseY >= panelTop && mouseY < panelTop + PANEL_HEIGHT;
+        }
+
+        void scroll(double scrollY) {
+            scrollRow = Math.max(0, Math.min(maxScrollRow(), scrollRow - (int) Math.signum(scrollY)));
+        }
+
+        boolean mouseClicked(MouseButtonEvent event, int panelLeft, int panelTop) {
+            Category[] categories = Category.values();
+            for (int i = 0; i < categories.length; i++) {
+                int x = tabX(panelLeft, i);
+                int y = tabY(panelTop);
+                if (event.x() >= x && event.x() < x + TAB_WIDTH && event.y() >= y && event.y() < y + TAB_HEIGHT) {
+                    active = categories[i];
+                    scrollRow = 0;
+                    return true;
+                }
+            }
+
+            int gridX = panelLeft + GRID_X;
+            int gridY = panelTop + GRID_Y;
+            int col = (int) ((event.x() - gridX) / CELL_SIZE);
+            int row = (int) ((event.y() - gridY) / CELL_SIZE);
+            if (col < 0 || col >= COLUMNS || row < 0 || row >= VISIBLE_ROWS) {
+                return false;
+            }
+            int index = (scrollRow + row) * COLUMNS + col;
+            List<ItemStack> items = activeItems();
+            if (index < 0 || index >= items.size()) {
+                return false;
+            }
+            ItemStack template = items.get(index);
+            int count = event.button() == 1 ? 1 : template.getMaxStackSize();
+            Identifier itemId = BuiltInRegistries.ITEM.getKey(template.getItem());
+            Minecraft.getInstance().getConnection().send(new ServerboundCustomPayloadPacket(new RequestPaletteItemPayload(itemId, count)));
+            return true;
+        }
+
+        private void extractTab(GuiGraphicsExtractor graphics, net.minecraft.client.gui.Font font, int panelLeft, int panelTop, int mouseX, int mouseY, Category category, int index) {
+            boolean selected = category == active;
+            Identifier sprite = (selected ? SELECTED_TABS : UNSELECTED_TABS)[index];
+            int x = tabX(panelLeft, index);
+            int y = tabY(panelTop);
+            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, TAB_WIDTH, TAB_HEIGHT);
+            graphics.item(tabIcon(category), x + 5, y + 8);
+            if (mouseX >= x + 3 && mouseX < x + TAB_WIDTH - 3 && mouseY >= y + 3 && mouseY < y + TAB_HEIGHT - 3) {
+                graphics.setTooltipForNextFrame(font, tabLabel(category), mouseX, mouseY);
+            }
+        }
+
+        void extractRenderState(GuiGraphicsExtractor graphics, net.minecraft.client.gui.Font font, int panelLeft, int panelTop, int mouseX, int mouseY) {
+            // Unselected tabs first, then the panel, then the selected tab on top -- same order
+            // vanilla's own CreativeModeInventoryScreen uses, so the selected tab's bottom edge
+            // paints over the panel seam instead of the panel painting over it.
+            Category[] categories = Category.values();
+            for (int i = 0; i < categories.length; i++) {
+                if (categories[i] != active) {
+                    extractTab(graphics, font, panelLeft, panelTop, mouseX, mouseY, categories[i], i);
+                }
+            }
+
+            graphics.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND, panelLeft, panelTop, 0.0F, 0.0F, PANEL_WIDTH, PANEL_HEIGHT, 256, 256);
+
+            for (int i = 0; i < categories.length; i++) {
+                if (categories[i] == active) {
+                    extractTab(graphics, font, panelLeft, panelTop, mouseX, mouseY, categories[i], i);
+                }
+            }
+
+            if (maxScrollRow() > 0) {
+                Identifier scrollSprite = scrollRow < maxScrollRow() ? SCROLLER_SPRITE : SCROLLER_DISABLED_SPRITE;
+                int trackHeight = VISIBLE_ROWS * CELL_SIZE - 17;
+                int scrollY = panelTop + GRID_Y + (maxScrollRow() == 0 ? 0 : trackHeight * scrollRow / maxScrollRow());
+                graphics.blitSprite(RenderPipelines.GUI_TEXTURED, scrollSprite, panelLeft + PANEL_WIDTH - 14, scrollY, 12, 15);
+            }
+
+            List<ItemStack> items = activeItems();
+            int gridX = panelLeft + GRID_X;
+            int gridY = panelTop + GRID_Y;
+            for (int row = 0; row < VISIBLE_ROWS; row++) {
+                for (int col = 0; col < COLUMNS; col++) {
+                    int index = (scrollRow + row) * COLUMNS + col;
+                    if (index >= items.size()) {
+                        continue;
+                    }
+                    int x = gridX + col * CELL_SIZE;
+                    int y = gridY + row * CELL_SIZE;
+                    ItemStack stack = items.get(index);
+                    graphics.item(stack, x + 1, y + 1);
+                    if (mouseX >= x && mouseX < x + CELL_SIZE && mouseY >= y && mouseY < y + CELL_SIZE) {
+                        graphics.setTooltipForNextFrame(font, stack, mouseX, mouseY);
+                    }
+                }
+            }
+        }
     }
 }
