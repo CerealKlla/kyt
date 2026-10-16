@@ -2,7 +2,6 @@ package com.github.cerealklla.kyt;
 
 import com.github.cerealklla.kyt.api.Kyt;
 import com.github.cerealklla.kyt.debug.DebugCommands;
-import com.github.cerealklla.kyt.loadout.KytEditorMenuProvider;
 import com.github.cerealklla.kyt.loadout.LoadoutMenu;
 import com.github.cerealklla.kyt.loadout.LoadoutRecord;
 import com.github.cerealklla.kyt.loadout.LoadoutStorage;
@@ -93,17 +92,7 @@ public class KytMod {
                     if (!(context.player() instanceof ServerPlayer player)) {
                         return;
                     }
-                    String name = sanitizedName(payload.name());
-                    if (name.isEmpty()) {
-                        player.sendSystemMessage(Component.literal("Kyt name can't be blank."));
-                        return;
-                    }
-                    if (isSystemManaged(name)) {
-                        player.sendSystemMessage(Component.literal("That Kyt is managed by the server and can't be created, edited, or overwritten."));
-                        return;
-                    }
-                    LoadoutRecord current = LoadoutStorage.get().load(name).orElse(LoadoutRecord.empty(name));
-                    player.openMenu(new KytEditorMenuProvider(name, true, current));
+                    Kyt.openCreateScreen(player, payload.name());
                 });
 
         registrar.playToServer(RequestEditKytPayload.TYPE, RequestEditKytPayload.STREAM_CODEC,
@@ -111,13 +100,7 @@ public class KytMod {
                     if (!(context.player() instanceof ServerPlayer player)) {
                         return;
                     }
-                    if (isSystemManaged(payload.name())) {
-                        player.sendSystemMessage(Component.literal("That Kyt is managed by the server and can't be created, edited, or overwritten."));
-                        return;
-                    }
-                    LoadoutStorage.get().load(payload.name()).ifPresentOrElse(
-                            current -> player.openMenu(new KytEditorMenuProvider(payload.name(), false, current)),
-                            () -> player.sendSystemMessage(Component.literal("That Kyt no longer exists.")));
+                    Kyt.openEditScreen(player, payload.name());
                 });
 
         registrar.playToServer(RequestPaletteItemPayload.TYPE, RequestPaletteItemPayload.STREAM_CODEC,

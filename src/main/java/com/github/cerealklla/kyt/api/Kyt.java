@@ -4,11 +4,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import com.github.cerealklla.kyt.loadout.KytEditorMenuProvider;
 import com.github.cerealklla.kyt.loadout.LoadoutApplier;
 import com.github.cerealklla.kyt.loadout.LoadoutRecord;
 import com.github.cerealklla.kyt.loadout.LoadoutStorage;
 import com.github.cerealklla.kyt.system.SystemKyts;
 
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 
@@ -74,5 +76,51 @@ public final class Kyt {
      */
     public static void registerDevKytContribution(Supplier<List<ItemStack>> items) {
         SystemKyts.registerDevKytContribution(items);
+    }
+
+    /**
+     * Opens Kyt's own real Create/Edit screen ({@code loadout.client.LoadoutEditorScreen}) for
+     * {@code player}, for a brand-new (not-yet-existing) {@code name} -- added 2026-10-16 for
+     * Settlemynts' Guard Kit Stand feature, the first cross-mod caller of the real editor. Mirrors
+     * {@code KytMod}'s own {@code RequestCreateKytPayload} handler exactly (same {@code
+     * isSystemManaged} guard, same blank-name rejection, same {@code player.openMenu(new
+     * KytEditorMenuProvider(...))} call) -- that handler exists only because the *client's own* Main
+     * Menu button sends a payload to reach this same server-side logic; a caller that's already on
+     * the server (like Settlemynts' right-click handler) can call straight into it, no payload
+     * needed. Sends the same player-facing chat messages on failure as the original path, so the
+     * player sees identical feedback regardless of which trigger reached this logic.
+     */
+    public static void openCreateScreen(ServerPlayer player, String name) {
+        String sanitized = name == null ? "" : name.trim();
+        if (sanitized.isEmpty()) {
+            player.sendSystemMessage(Component.literal("Kyt name can't be blank."));
+            return;
+        }
+        if (isSystemManaged(sanitized)) {
+            player.sendSystemMessage(Component.literal("That Kyt is managed by the server and can't be created, edited, or overwritten."));
+            return;
+        }
+        LoadoutRecord current = LoadoutStorage.get().load(sanitized).orElse(LoadoutRecord.empty(sanitized));
+        player.openMenu(new KytEditorMenuProvider(sanitized, true, current));
+    }
+
+    /**
+     * Opens Kyt's own real Edit screen for an already-existing {@code name} -- see {@link
+     * #openCreateScreen} for the full rationale. Mirrors {@code KytMod}'s own {@code
+     * RequestEditKytPayload} handler exactly, including its "that Kyt no longer exists" message for
+     * a stale/deleted name (e.g. a Guard Kit Stand bound to a Kyt someone has since deleted).
+     */
+    public static void openEditScreen(ServerPlayer player, String name) {
+        if (isSystemManaged(name)) {
+            player.sendSystemMessage(Component.literal("That Kyt is managed by the server and can't be created, edited, or overwritten."));
+            return;
+        }
+        LoadoutStorage.get().load(name).ifPresentOrElse(
+                current -> player.openMenu(new KytEditorMenuProvider(name, false, current)),
+                () -> player.sendSystemMessage(Component.literal("That Kyt no longer exists.")));
+    }
+
+    private static boolean isSystemManaged(String name) {
+        return getKyt(name).map(LoadoutRecord::systemManaged).orElse(false);
     }
 }
