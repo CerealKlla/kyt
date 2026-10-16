@@ -213,6 +213,39 @@ public final class LoadoutEditorScreen extends AbstractContainerScreen<LoadoutMe
         return super.mouseClicked(event, doubled);
     }
 
+    /**
+     * Real live report, 2026-10-16: "Clicking with an item in your hand either the text box or the
+     * tabs over the items still drops the item on the ground for free" -- a second, independent bug
+     * from the one the {@link #mouseClicked} override above already fixed. Confirmed against the
+     * decompiled vanilla source: {@code AbstractContainerScreen#mouseClicked} short-circuits on a
+     * widget consuming the press (returns immediately if {@code super.mouseClicked(...)} was {@code
+     * true}), but {@code AbstractContainerScreen#mouseReleased} has no equivalent early return -- it
+     * unconditionally recomputes "clicked outside" from the release position and, with a carried
+     * item on the cursor and no real {@code Slot} under the cursor, calls {@code slotClicked(null,
+     * -999, ..., PICKUP)} (vanilla's own "drop the carried item" sentinel) regardless of what
+     * happened on press. The Kyt Name box (drawn above {@code topPos}) and the palette's tab row
+     * (which straddles {@code topPos} the same way, see {@code ItemPalette#tabY}) both sit outside
+     * {@code imageWidth}/{@code imageHeight}, so releasing the mouse there -- even after a release
+     * the press itself handled safely -- was dropping the carried item every time. Mirrors the
+     * {@code mouseClicked} override above: bypass {@code super.mouseReleased} entirely for the same
+     * two regions, since neither the palette (whose own pick-up action already completes fully
+     * inside {@code mouseClicked}) nor the read-only-in-Edit-mode name box need anything from a
+     * release at all.
+     */
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        if (palette.isOverPalette(event.x(), event.y(), paletteLeft, paletteTop) || isOverNameBox(event.x(), event.y())) {
+            return true;
+        }
+        return super.mouseReleased(event);
+    }
+
+    private boolean isOverNameBox(double mouseX, double mouseY) {
+        return nameBox != null
+                && mouseX >= nameBox.getX() && mouseX < nameBox.getX() + nameBox.getWidth()
+                && mouseY >= nameBox.getY() && mouseY < nameBox.getY() + nameBox.getHeight();
+    }
+
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (palette.isOverGrid(mouseX, mouseY, paletteLeft, paletteTop)) {
