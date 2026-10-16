@@ -117,4 +117,14 @@ depending on them directly. A real crash (an enchanted item can't be saved throu
 green across all four repos, whole-suite rebuild green. **Confirmed live, 2026-10-02** — "all looked
 good enough to move on for now."
 
+**`api.Kyt` gained a cross-mod "open the real editor" capability, 2026-10-16** — needed for
+Settlemynts' new Guard Kit Stand feature, whose Kit Menu lets a player create/edit a Kyt directly
+from a different mod's own trigger (not just from this mod's own "Kyt Configuration" structure).
+New `api.Kyt#openCreateScreen`/`#openEditScreen` mirror `KytMod`'s own `RequestCreateKytPayload`/
+`RequestEditKytPayload` handler logic exactly (same `isSystemManaged` guard, same blank-name
+rejection, same `player.openMenu(new KytEditorMenuProvider(...))` call) — those two payload
+handlers now delegate to the new facade methods instead of duplicating the logic, so there's one
+real implementation. `./gradlew build` green in both repos, whole-suite (11 mods) boot-smoke-tested
+clean via `runServer` from Cartographyr.
+
 See [context/classes/](context/classes/) for per-class reference.
