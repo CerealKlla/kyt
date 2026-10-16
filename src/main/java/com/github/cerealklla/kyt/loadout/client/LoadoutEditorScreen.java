@@ -214,36 +214,31 @@ public final class LoadoutEditorScreen extends AbstractContainerScreen<LoadoutMe
     }
 
     /**
-     * Real live report, 2026-10-16: "Clicking with an item in your hand either the text box or the
-     * tabs over the items still drops the item on the ground for free" -- a second, independent bug
-     * from the one the {@link #mouseClicked} override above already fixed. Confirmed against the
-     * decompiled vanilla source: {@code AbstractContainerScreen#mouseClicked} short-circuits on a
-     * widget consuming the press (returns immediately if {@code super.mouseClicked(...)} was {@code
-     * true}), but {@code AbstractContainerScreen#mouseReleased} has no equivalent early return -- it
-     * unconditionally recomputes "clicked outside" from the release position and, with a carried
-     * item on the cursor and no real {@code Slot} under the cursor, calls {@code slotClicked(null,
-     * -999, ..., PICKUP)} (vanilla's own "drop the carried item" sentinel) regardless of what
-     * happened on press. The Kyt Name box (drawn above {@code topPos}) and the palette's tab row
-     * (which straddles {@code topPos} the same way, see {@code ItemPalette#tabY}) both sit outside
-     * {@code imageWidth}/{@code imageHeight}, so releasing the mouse there -- even after a release
-     * the press itself handled safely -- was dropping the carried item every time. Mirrors the
-     * {@code mouseClicked} override above: bypass {@code super.mouseReleased} entirely for the same
-     * two regions, since neither the palette (whose own pick-up action already completes fully
-     * inside {@code mouseClicked}) nor the read-only-in-Edit-mode name box need anything from a
-     * release at all.
+     * General fix, 2026-10-16, replacing two narrower region-specific patches (see decisions.md) --
+     * a third live report ("Clicking with an item in hand anywhere in this region of the screen" --
+     * a screenshot of the real vanilla HUD strip visible below/around this screen's own panel,
+     * nowhere near the Name box or palette tabs the earlier two patches targeted) made it clear the
+     * underlying bug is general, not confined to specific named regions. Confirmed against the
+     * decompiled vanilla source ({@code AbstractContainerScreen#mouseClicked}/{@code mouseReleased}
+     * both compute {@code clickedOutside} via this exact method, and "outside" means outside {@code
+     * imageWidth}/{@code imageHeight} -- this screen's own panel is far smaller than the full window,
+     * so the real vanilla HUD (hotbar/health/armor) stays visible in the uncovered area below it,
+     * and clicking/releasing anywhere out there was dropping a carried item for free.
+     *
+     * <p>Forcing this to always return {@code false} is safe, not just convenient: confirmed against
+     * {@code AbstractContainerMenu#doClick}'s own real source that every non-{@code -999} branch of
+     * its click handling starts with {@code if (slotIndex < 0) return;} -- so suppressing the -999
+     * "drop/throw" sentinel entirely still leaves a completely safe no-op for any click/release that
+     * isn't over a real {@link net.minecraft.world.inventory.Slot}, exactly matching ordinary vanilla
+     * behavior for clicking dead background space *inside* a normal container screen's own panel.
+     * This single override supersedes (and is why the two region-specific {@code mouseReleased}
+     * bypasses that used to sit here were removed) every variant of this bug in one place, since it's
+     * no longer possible for ANY out-of-panel click to be treated as "outside" at all, regardless of
+     * which specific area of the screen it happens to be over.
      */
     @Override
-    public boolean mouseReleased(MouseButtonEvent event) {
-        if (palette.isOverPalette(event.x(), event.y(), paletteLeft, paletteTop) || isOverNameBox(event.x(), event.y())) {
-            return true;
-        }
-        return super.mouseReleased(event);
-    }
-
-    private boolean isOverNameBox(double mouseX, double mouseY) {
-        return nameBox != null
-                && mouseX >= nameBox.getX() && mouseX < nameBox.getX() + nameBox.getWidth()
-                && mouseY >= nameBox.getY() && mouseY < nameBox.getY() + nameBox.getHeight();
+    protected boolean hasClickedOutside(double mouseX, double mouseY, int xo, int yo) {
+        return false;
     }
 
     @Override
