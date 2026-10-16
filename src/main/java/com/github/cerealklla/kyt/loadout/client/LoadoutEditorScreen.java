@@ -191,12 +191,26 @@ public final class LoadoutEditorScreen extends AbstractContainerScreen<LoadoutMe
         palette.extractRenderState(graphics, font, paletteLeft, paletteTop, mouseX, mouseY);
     }
 
+    /**
+     * Real live report, 2026-10-16: "isn't actually allowing you to click anything in the pallet."
+     * Root cause, confirmed against the decompiled vanilla source: {@code imageWidth}/{@code
+     * imageHeight} were widened to cover the palette panel too (see this class's own doc, the
+     * 2026-10-13 merge), but vanilla's own {@code AbstractContainerScreen#mouseClicked} always
+     * returns {@code true} unconditionally once it reaches its own final line -- even for a click
+     * that matched no real {@code Slot} -- as long as {@code hasClickedOutside} says the click
+     * landed within those same {@code imageWidth}/{@code imageHeight} bounds. Since the palette now
+     * sits inside those bounds, every click there was being silently swallowed by {@code
+     * super.mouseClicked} before {@code palette.mouseClicked} was ever reached. Fixed by checking the
+     * palette's own real bounds (grid + tab row) FIRST and routing straight to it, bypassing {@code
+     * super.mouseClicked} entirely for that region instead of only falling back to the palette on a
+     * {@code false} that vanilla was never actually going to return there.
+     */
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
-        if (super.mouseClicked(event, doubled)) {
-            return true;
+        if (palette.isOverPalette(event.x(), event.y(), paletteLeft, paletteTop)) {
+            return palette.mouseClicked(event, paletteLeft, paletteTop);
         }
-        return palette.mouseClicked(event, paletteLeft, paletteTop);
+        return super.mouseClicked(event, doubled);
     }
 
     @Override
@@ -345,6 +359,19 @@ public final class LoadoutEditorScreen extends AbstractContainerScreen<LoadoutMe
         boolean isOverGrid(double mouseX, double mouseY, int panelLeft, int panelTop) {
             return mouseX >= panelLeft && mouseX < panelLeft + PANEL_WIDTH
                     && mouseY >= panelTop && mouseY < panelTop + PANEL_HEIGHT;
+        }
+
+        /** Union of the grid panel and the tab row above it (which sits outside {@link #isOverGrid}'s
+         *  own bounds, above {@code panelTop}) -- the real click-routing boundary {@code
+         *  LoadoutEditorScreen#mouseClicked} needs, covering everything {@link #mouseClicked} itself
+         *  can actually act on. */
+        boolean isOverPalette(double mouseX, double mouseY, int panelLeft, int panelTop) {
+            if (isOverGrid(mouseX, mouseY, panelLeft, panelTop)) {
+                return true;
+            }
+            int tabTop = tabY(panelTop);
+            return mouseX >= panelLeft && mouseX < panelLeft + Category.values().length * (TAB_WIDTH + 2)
+                    && mouseY >= tabTop && mouseY < tabTop + TAB_HEIGHT;
         }
 
         void scroll(double scrollY) {

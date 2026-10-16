@@ -140,4 +140,22 @@ public class LoadoutMenu extends AbstractContainerMenu {
     public boolean stillValid(Player player) {
         return container.stillValid(player);
     }
+
+    /**
+     * Discards whatever's on the cursor instead of vanilla's own default {@code removed()}, which
+     * hands a carried item back to the player's real inventory (or drops it on the ground, if the
+     * player is disconnecting) -- real live report, 2026-10-16: "I should not be able to drop the
+     * item on the ground or maintain it if it's on my mouse and I hit escape." Every item this menu
+     * ever carries either came from {@code client.LoadoutEditorScreen}'s own palette (a free,
+     * creative-style "give me this item" materialization, {@code RequestPaletteItemPayload}'s own
+     * {@code LoadoutMenu#setCarried} call) or was already sitting in one of this menu's own
+     * config-only slots -- none of it is a real possession the player earned, and letting a palette
+     * pick-then-Escape (without ever placing it into a slot) slip it into the player's actual
+     * inventory would be a free, uncosted item exploit. Deliberately doesn't call {@code
+     * super.removed(player)} at all -- that's the one method actually responsible for the leak.
+     */
+    @Override
+    public void removed(Player player) {
+        setCarried(ItemStack.EMPTY);
+    }
 }
