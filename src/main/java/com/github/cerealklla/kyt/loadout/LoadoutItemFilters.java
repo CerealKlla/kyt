@@ -3,6 +3,7 @@ package com.github.cerealklla.kyt.loadout;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ProjectileWeaponItem;
 
 /**
  * Shared item-category predicates, used both to restrict {@link LoadoutArmorSlot}'s own {@code
@@ -20,16 +21,24 @@ public final class LoadoutItemFilters {
     }
 
     /**
-     * No clean vanilla "is a weapon" tag exists -- this is a heuristic (anything carrying a combat
-     * data component, plus the vanilla swords tag), not an authoritative classification. Flagged as
-     * a known imprecision, not an oversight -- it only affects which palette tab an item is easiest
-     * to find under, never which loadout slots accept it (Offhand/Hotbar take anything).
+     * No clean vanilla "is a weapon" tag exists -- this is a heuristic, not an authoritative
+     * classification. Flagged as a known imprecision, not an oversight -- it only affects which
+     * palette tab an item is easiest to find under, never which loadout slots accept it
+     * (Offhand/Hotbar take anything). Confirmed against this MC version's real decompiled source
+     * (2026-10-16): {@code DataComponents.WEAPON} is attached to every tool tier (sword/axe/pickaxe/
+     * shovel/hoe alike, via {@code ToolMaterial.applyToolProperties}), not just combat items, so it's
+     * both necessary (it's the only signal Mace/Trident carry) and already over-broad on its own.
+     * Bow/Crossbow carry none of the three weapon components and aren't tagged `swords` -- vanilla's
+     * only shared type for them is {@link ProjectileWeaponItem}, their one common supertype.
      */
     public static boolean isWeapon(ItemStack stack) {
         return stack.get(DataComponents.WEAPON) != null
                 || stack.get(DataComponents.PIERCING_WEAPON) != null
                 || stack.get(DataComponents.KINETIC_WEAPON) != null
-                || stack.is(ItemTags.SWORDS);
+                || stack.is(ItemTags.SWORDS)
+                || stack.is(ItemTags.AXES)
+                || stack.is(ItemTags.SPEARS)
+                || stack.getItem() instanceof ProjectileWeaponItem;
     }
 
     public static boolean isConsumable(ItemStack stack) {
