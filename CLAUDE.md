@@ -127,4 +127,9 @@ handlers now delegate to the new facade methods instead of duplicating the logic
 real implementation. `./gradlew build` green in both repos, whole-suite (11 mods) boot-smoke-tested
 clean via `runServer` from Cartographyr.
 
+**`ClientKytRequests` rebuilt atop Nuclyus's shared `ClientRequestSlot`, 2026-10-17** (see Nuclyus's
+own CLAUDE.md/decisions.md) -- its two fields now use `nuclyus.request.ClientRequestSlot` instead of
+a hand-rolled volatile-field-plus-request/takePending pair; public API unchanged. `./gradlew build`
+green, whole-suite (12 mods) rebuild green, `runServer` boot-smoke-tested clean.
+
 See [context/classes/](context/classes/) for per-class reference.

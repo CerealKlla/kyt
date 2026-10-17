@@ -4,6 +4,7 @@ import java.util.Optional;
 
 import com.github.cerealklla.kyt.structure.OpenKytMainMenuPayload;
 import com.github.cerealklla.kyt.structure.OpenKytPickerPayload;
+import com.github.cerealklla.nuclyus.request.ClientRequestSlot;
 
 /**
  * Client-side bridge for "a Kyt screen should open" -- zero-client-import poll-once-handoff
@@ -19,29 +20,25 @@ import com.github.cerealklla.kyt.structure.OpenKytPickerPayload;
  */
 public final class ClientKytRequests {
 
-    private static volatile OpenKytMainMenuPayload pendingMainMenu;
-    private static volatile OpenKytPickerPayload pendingPicker;
+    private static final ClientRequestSlot<OpenKytMainMenuPayload> MAIN_MENU = new ClientRequestSlot<>();
+    private static final ClientRequestSlot<OpenKytPickerPayload> PICKER = new ClientRequestSlot<>();
 
     private ClientKytRequests() {
     }
 
     public static void requestMainMenu(OpenKytMainMenuPayload payload) {
-        pendingMainMenu = payload;
+        MAIN_MENU.request(payload);
     }
 
     public static Optional<OpenKytMainMenuPayload> takePendingMainMenu() {
-        OpenKytMainMenuPayload request = pendingMainMenu;
-        pendingMainMenu = null;
-        return Optional.ofNullable(request);
+        return MAIN_MENU.takePending();
     }
 
     public static void requestPicker(OpenKytPickerPayload payload) {
-        pendingPicker = payload;
+        PICKER.request(payload);
     }
 
     public static Optional<OpenKytPickerPayload> takePendingPicker() {
-        OpenKytPickerPayload request = pendingPicker;
-        pendingPicker = null;
-        return Optional.ofNullable(request);
+        return PICKER.takePending();
     }
 }
