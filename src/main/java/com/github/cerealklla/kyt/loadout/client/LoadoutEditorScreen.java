@@ -335,14 +335,27 @@ public final class LoadoutEditorScreen extends AbstractContainerScreen<LoadoutMe
             }
             all.sort(Comparator.comparing(stack -> stack.getHoverName().getString()));
             for (ItemStack stack : all) {
-                if (LoadoutItemFilters.isArmor(stack)) {
+                boolean isArmor = LoadoutItemFilters.isArmor(stack);
+                boolean isWeapon = LoadoutItemFilters.isWeapon(stack);
+                boolean isConsumable = LoadoutItemFilters.isConsumable(stack);
+                if (isArmor) {
                     armorItems.add(stack);
                 }
-                if (LoadoutItemFilters.isWeapon(stack)) {
-                    weaponItems.add(stack);
-                }
-                if (LoadoutItemFilters.isConsumable(stack)) {
+                if (isConsumable) {
                     consumableItems.add(stack);
+                }
+                // Real report, 2026-10-23: "Does not let me put a focus in the offhand" -- Lyfe's
+                // Focus item (and any other non-armor/non-weapon/non-consumable offhand implement,
+                // present or future) matched none of the three filters above, so it never appeared
+                // under ANY palette tab at all -- not a slot restriction (Offhand already accepts
+                // anything, see LoadoutMenu's own doc), just nowhere to pick it up from in the first
+                // place. Weapons is already documented as a catch-all "where to find offhand stuff"
+                // bucket, not a strict combat classification -- widened here (not inside
+                // LoadoutItemFilters#isWeapon itself, which stays an honest "is this actually a
+                // weapon" check for any future caller) so every item in the registry lands in at
+                // least one tab.
+                if (isWeapon || (!isArmor && !isConsumable)) {
+                    weaponItems.add(stack);
                 }
             }
         }
