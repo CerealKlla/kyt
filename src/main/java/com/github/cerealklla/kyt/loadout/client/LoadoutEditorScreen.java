@@ -289,7 +289,17 @@ public final class LoadoutEditorScreen extends AbstractContainerScreen<LoadoutMe
      */
     private static final class ItemPalette {
 
-        private enum Category { ARMOR, WEAPONS, CONSUMABLES }
+        // Real regression, 2026-10-24: the original fix for "Focus never shows up anywhere" folded
+        // every uncategorized item straight into WEAPONS as a catch-all -- but almost nothing in
+        // vanilla's registry actually matches isWeapon/isArmor/isConsumable (ordinary blocks, doors,
+        // fences, leaves, logs, eggs, etc. are all "none of the three"), so that one line dumped the
+        // vast majority of the entire item registry into the Weapons tab, confirmed live via
+        // screenshot ("showing every single item when in the weapon/tool tab"). Real fix: a genuine
+        // 4th tab for "everything else" instead of folding it into an unrelated one -- vanilla ships
+        // 7 numbered tab sprite variants (confirmed against the real client jar), not just the 3 this
+        // screen originally used, so there was no actual asset constraint forcing the catch-all
+        // approach in the first place.
+        private enum Category { ARMOR, WEAPONS, CONSUMABLES, OTHER }
 
         private static final Identifier BACKGROUND = Identifier.withDefaultNamespace("textures/gui/container/creative_inventory/tab_items.png");
         private static final Identifier SCROLLER_SPRITE = Identifier.withDefaultNamespace("container/creative_inventory/scroller");
@@ -298,11 +308,13 @@ public final class LoadoutEditorScreen extends AbstractContainerScreen<LoadoutMe
                 Identifier.withDefaultNamespace("container/creative_inventory/tab_top_unselected_1"),
                 Identifier.withDefaultNamespace("container/creative_inventory/tab_top_unselected_2"),
                 Identifier.withDefaultNamespace("container/creative_inventory/tab_top_unselected_3"),
+                Identifier.withDefaultNamespace("container/creative_inventory/tab_top_unselected_4"),
         };
         private static final Identifier[] SELECTED_TABS = {
                 Identifier.withDefaultNamespace("container/creative_inventory/tab_top_selected_1"),
                 Identifier.withDefaultNamespace("container/creative_inventory/tab_top_selected_2"),
                 Identifier.withDefaultNamespace("container/creative_inventory/tab_top_selected_3"),
+                Identifier.withDefaultNamespace("container/creative_inventory/tab_top_selected_4"),
         };
 
         // Matches vanilla's own ItemPickerMenu slot layout exactly: 9 columns, 5 visible rows, 18px
@@ -321,6 +333,7 @@ public final class LoadoutEditorScreen extends AbstractContainerScreen<LoadoutMe
         private final List<ItemStack> armorItems = new ArrayList<>();
         private final List<ItemStack> weaponItems = new ArrayList<>();
         private final List<ItemStack> consumableItems = new ArrayList<>();
+        private final List<ItemStack> otherItems = new ArrayList<>();
 
         private Category active = Category.ARMOR;
         private int scrollRow;
@@ -340,22 +353,20 @@ public final class LoadoutEditorScreen extends AbstractContainerScreen<LoadoutMe
                 boolean isConsumable = LoadoutItemFilters.isConsumable(stack);
                 if (isArmor) {
                     armorItems.add(stack);
-                }
-                if (isConsumable) {
-                    consumableItems.add(stack);
-                }
-                // Real report, 2026-10-23: "Does not let me put a focus in the offhand" -- Lyfe's
-                // Focus item (and any other non-armor/non-weapon/non-consumable offhand implement,
-                // present or future) matched none of the three filters above, so it never appeared
-                // under ANY palette tab at all -- not a slot restriction (Offhand already accepts
-                // anything, see LoadoutMenu's own doc), just nowhere to pick it up from in the first
-                // place. Weapons is already documented as a catch-all "where to find offhand stuff"
-                // bucket, not a strict combat classification -- widened here (not inside
-                // LoadoutItemFilters#isWeapon itself, which stays an honest "is this actually a
-                // weapon" check for any future caller) so every item in the registry lands in at
-                // least one tab.
-                if (isWeapon || (!isArmor && !isConsumable)) {
+                } else if (isWeapon) {
                     weaponItems.add(stack);
+                } else if (isConsumable) {
+                    consumableItems.add(stack);
+                } else {
+                    // Real report, 2026-10-23: "Does not let me put a focus in the offhand" -- Lyfe's
+                    // Focus item (and any other non-armor/non-weapon/non-consumable offhand implement,
+                    // present or future) matched none of the three original filters, so it never
+                    // appeared under ANY palette tab at all -- not a slot restriction (Offhand already
+                    // accepts anything, see LoadoutMenu's own doc), just nowhere to pick it up from in
+                    // the first place. A real dedicated Other tab (not a Weapons catch-all, see this
+                    // class's own doc on why that first attempt was wrong) guarantees every item in
+                    // the registry still lands in exactly one tab.
+                    otherItems.add(stack);
                 }
             }
         }
@@ -365,6 +376,7 @@ public final class LoadoutEditorScreen extends AbstractContainerScreen<LoadoutMe
                 case ARMOR -> armorItems;
                 case WEAPONS -> weaponItems;
                 case CONSUMABLES -> consumableItems;
+                case OTHER -> otherItems;
             };
         }
 
@@ -373,6 +385,7 @@ public final class LoadoutEditorScreen extends AbstractContainerScreen<LoadoutMe
                 case ARMOR -> Component.literal("Armor");
                 case WEAPONS -> Component.literal("Weapons");
                 case CONSUMABLES -> Component.literal("Consumables");
+                case OTHER -> Component.literal("Other");
             };
         }
 
@@ -381,6 +394,7 @@ public final class LoadoutEditorScreen extends AbstractContainerScreen<LoadoutMe
                 case ARMOR -> new ItemStack(Items.DIAMOND_CHESTPLATE);
                 case WEAPONS -> new ItemStack(Items.DIAMOND_SWORD);
                 case CONSUMABLES -> new ItemStack(Items.APPLE);
+                case OTHER -> new ItemStack(Items.CHEST);
             };
         }
 

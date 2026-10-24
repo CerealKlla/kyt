@@ -53,12 +53,17 @@ public class LoadoutMenu extends AbstractContainerMenu {
     // row/slots sit on screen," not "where that art lives in the PNG" anymore.
     public static final int ARMOR_X = 8;
     public static final int ARMOR_TOP_Y = 22;
-    // Moved up + slightly right 2026-10-01 (was 77,62 -- vanilla's own offhand coordinate, which sat
-    // down by the mannequin's feet, dangling outside the preview box's own right edge with no clear
-    // relationship to it per live feedback). 79 is the rightmost x that still fits inside
-    // LoadoutEditorScreen's 97px-wide top texture crop (79 + 18 = 97).
-    public static final int OFFHAND_X = 79;
-    public static final int OFFHAND_Y = 54;
+    // Reverted toward vanilla's own real InventoryMenu offhand placement, 2026-10-24, explicit user
+    // request ("See player inventory for reference") -- supersedes the 2026-10-01 move above (79,
+    // 54). NOT a literal copy of vanilla's raw (77, 62) though -- that exact pair was already tried
+    // once (see the 2026-10-01 note this replaces) and read as "dangling," because this panel's
+    // whole armor column carries its own +14 Y shift (ARMOR_TOP_Y=22 vs vanilla's real 8) that a
+    // bare vanilla coordinate ignores. What "matches vanilla" actually means visually is the
+    // *relationship* -- offhand sits in the same row as the boots slot -- so Y tracks ARMOR_TOP_Y's
+    // own boots offset (+54) instead of vanilla's unshifted literal value, landing offhand directly
+    // beside boots in this panel's own coordinate space exactly like vanilla's real screen does.
+    public static final int OFFHAND_X = 77;
+    public static final int OFFHAND_Y = ARMOR_TOP_Y + 54;
     public static final int HOTBAR_Y = 110;
 
     private final Container container;
