@@ -1,5 +1,7 @@
 package com.github.cerealklla.kyt.loadout;
 
+import com.github.cerealklla.kyt.generic.GenericEquipmentItem;
+
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.item.ItemStack;
@@ -38,7 +40,10 @@ public final class LoadoutItemFilters {
                 || stack.is(ItemTags.SWORDS)
                 || stack.is(ItemTags.AXES)
                 || stack.is(ItemTags.SPEARS)
-                || stack.getItem() instanceof ProjectileWeaponItem;
+                || stack.getItem() instanceof ProjectileWeaponItem
+                // Generic placeholders (generic.GenericEquipmentItem) carry none of the above --
+                // their own family flags whether they belong here instead.
+                || GenericEquipmentItem.familyOf(stack).map(f -> f.weaponLike()).orElse(false);
     }
 
     public static boolean isConsumable(ItemStack stack) {

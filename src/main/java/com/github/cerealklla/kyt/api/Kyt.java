@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import com.github.cerealklla.kyt.generic.GenericEquipmentItem;
+import com.github.cerealklla.kyt.generic.GenericFamily;
 import com.github.cerealklla.kyt.loadout.KytEditorMenuProvider;
 import com.github.cerealklla.kyt.loadout.LoadoutApplier;
 import com.github.cerealklla.kyt.loadout.LoadoutRecord;
@@ -47,6 +49,16 @@ public final class Kyt {
 
     public static boolean kytExists(String name) {
         return getKyt(name).isPresent();
+    }
+
+    /**
+     * Which {@link GenericFamily} {@code stack} is a Generic placeholder for, if any -- added
+     * 2026-10-25 for Settlemynts' Guard-equip resolution (see {@code generic.GenericFamily}'s own
+     * doc for the full picture: Kyt only owns identity here, the actual "lowest tier in stock"
+     * resolution happens on the Settlemynts side).
+     */
+    public static Optional<GenericFamily> genericFamilyOf(ItemStack stack) {
+        return GenericEquipmentItem.familyOf(stack);
     }
 
     /**
