@@ -9,7 +9,6 @@ import com.github.cerealklla.kyt.loadout.LoadoutStorage;
 import com.github.cerealklla.kyt.welcome.WelcomeBookContent;
 
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 
 /**
  * Builds and saves Kyt's two mod-managed ({@code systemManaged=true}) Kyts fresh on every real
@@ -47,31 +46,22 @@ public final class SystemKyts {
     /**
      * Kyt's own vanilla-item base in the hotbar, plus every registered sibling-mod contribution
      * (Lyfe's crafting-overhaul blocks, Settlemynts' Settlement Claim Flag, Blueprynts'
-     * Construction Site item, whichever of those mods are actually loaded) flattened into the
-     * {@code inventory} overflow -- see {@code LoadoutRecord}'s own doc for why that field exists.
+     * Construction Site item, Caryvan's Hand Cart, whichever of those mods are actually loaded)
+     * flattened into the {@code inventory} overflow -- see {@code LoadoutRecord}'s own doc for why
+     * that field exists.
      *
-     * <p><b>Flint and Steel, not an enchanted sword</b> (confirmed live 2026-10-02) -- the deleted
-     * {@code LyfeMod#onPlayerLoggedIn} originally granted a Fire Aspect-enchanted Iron Sword for
-     * testing Survivalist/Cook's burn-kill XP trigger. {@code LoadoutStorage#save} encodes via
-     * plain {@code JsonOps}, which has no registry access -- an enchanted {@code ItemStack} fails
-     * to encode ("Can't access registry... minecraft:enchantment"), confirmed by a real crash on
-     * first boot. This is a genuine limitation of {@code LoadoutStorage}'s storage layer (it was
-     * never exercised before, since the Kyt Editor's item palette only ever produces plain,
-     * unenchanted items) -- fixing that properly would mean threading a live {@code RegistryAccess}
-     * through every save/load call site, out of scope for this dev-only convenience. Flint and
-     * Steel achieves the exact same testing goal (lighting something on fire) with no enchantment
-     * involved.
+     * <p><b>Hotbar emptied, 2026-10-25</b> (explicit user request, testing Caryvan's Phase 1 Hand
+     * Cart) -- the old fixed hotbar grab-bag (Flint and Steel, Planks, Stone Sword, Cobblestone,
+     * Stick, Sign, Map, Fence -- general-purpose testing items from well before this mod's own
+     * contribution system existed) is gone outright rather than fought with: whatever's currently
+     * useful to have immediately in-hand belongs to whichever mod actually owns that feature,
+     * contributed through the normal {@link #registerDevKytContribution} path into the
+     * {@code inventory} overflow below, same as everything else. If a genuinely new general-purpose
+     * testing item is needed again later, re-add it here deliberately rather than reviving this list
+     * wholesale.
      */
     private static LoadoutRecord buildDevKyt() {
         List<ItemStack> hotbar = new ArrayList<>();
-        hotbar.add(new ItemStack(Items.FLINT_AND_STEEL));
-        hotbar.add(new ItemStack(Items.OAK_PLANKS, 16));
-        hotbar.add(new ItemStack(Items.STONE_SWORD));
-        hotbar.add(new ItemStack(Items.COBBLESTONE, 16));
-        hotbar.add(new ItemStack(Items.STICK, 16));
-        hotbar.add(new ItemStack(Items.OAK_SIGN, 16));
-        hotbar.add(new ItemStack(Items.MAP, 8));
-        hotbar.add(new ItemStack(Items.OAK_FENCE, 16));
 
         List<ItemStack> inventory = new ArrayList<>(DevKytContributions.collectAll());
 
