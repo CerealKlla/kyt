@@ -6,11 +6,13 @@ import java.util.Optional;
 import net.minecraft.world.entity.EquipmentSlot;
 
 /**
- * The 13 equipment "families" a Kyt slot can be filled with a {@link GenericEquipmentItem}
+ * The 14 equipment "families" a Kyt slot can be filled with a {@link GenericEquipmentItem}
  * placeholder for instead of one specific real item -- explicit user request, 2026-10-25: "Use any
- * Helmet"/"Use any Nature Staff"-style items, one per every Weapon/Tool/Armor family in the suite
- * (Lyfe's {@code craft.EquipmentTierLadder.ToolType} six tool/weapon types, its two fixed-tier
- * ranged weapons, its {@code craft.NatureStaffLadder}, and the four vanilla armor
+ * Helmet"/"Use any Nature Staff"-style items, one per every Weapon, Tool, and Armor in the suite,
+ * including the Nature Staff and Focus (Lyfe's {@code craft.EquipmentTierLadder.ToolType} six
+ * tool/weapon types, its two fixed-tier ranged weapons, its {@code craft.NatureStaffLadder}, its
+ * {@code craft.FocusLadder} -- added 2026-10-26, a real gap: the original pass covered Nature Staff
+ * but missed Focus despite both being named in the same request -- and the four vanilla armor
  * {@link EquipmentSlot}s).
  *
  * <p>Kyt itself has zero sibling-mod dependencies by design (see this mod's own CLAUDE.md) -- this
@@ -30,6 +32,7 @@ public enum GenericFamily {
     BOW("Use any Bow", null, true),
     CROSSBOW("Use any Crossbow", null, true),
     NATURE_STAFF("Use any Nature Staff", null, true),
+    FOCUS("Use any Focus", null, true),
     HELMET("Use any Helmet", EquipmentSlot.HEAD, false),
     CHESTPLATE("Use any Chestplate", EquipmentSlot.CHEST, false),
     LEGGINGS("Use any Leggings", EquipmentSlot.LEGS, false),
